@@ -1,263 +1,3 @@
-import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import random
-import time
-
-
-# ================================================================
-#                 STREAMLIT PAGE CONFIG
-# ================================================================
-st.set_page_config(
-    page_title="Pattern Sensei Pro",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# TradingView-style colors
-GREEN = "#26a69a"
-RED = "#ef5350"
-BG = "#0d1220"
-GRID = "#1a1f2e"
-HIGHLIGHT_COLOR = "#f7d400"
-
-
-# ================================================================
-#                 GLOBAL SESSION STATE
-# ================================================================
-if "score" not in st.session_state:
-    st.session_state.score = 0
-if "streak" not in st.session_state:
-    st.session_state.streak = 0
-if "round" not in st.session_state:
-    st.session_state.round = 1
-if "start_time" not in st.session_state:
-    st.session_state.start_time = time.time()
-if "mode" not in st.session_state:
-    st.session_state.mode = "Set A"
-if "unlock_b" not in st.session_state:
-    st.session_state.unlock_b = False
-if "unlock_c" not in st.session_state:
-    st.session_state.unlock_c = False
-if "dev_override" not in st.session_state:
-    st.session_state.dev_override = False
-
-
-def reset_game():
-    st.session_state.score = 0
-    st.session_state.streak = 0
-    st.session_state.round = 1
-    st.session_state.start_time = time.time()
-
-
-# ================================================================
-#          RANDOM WALK FOR BACKGROUND CANDLES
-# ================================================================
-def generate_background_prices(n=15):
-    prices = [100]
-    for _ in range(n - 1):
-        prices.append(prices[-1] + np.random.normal(0, 1))
-    return prices
-
-
-# ================================================================
-#              PATTERN GENERATORS (SET A)
-# ================================================================
-def make_hammer():
-    body = random.uniform(0.2, 0.6)
-    lower_wick = body * random.uniform(2.2, 3.5)
-    upper_wick = body * random.uniform(0, 0.3)
-    bullish = random.choice([True, False])
-
-    if bullish:
-        open_p = 100
-        close_p = open_p + body
-    else:
-        close_p = 100
-        open_p = close_p + body
-
-    high = max(open_p, close_p) + upper_wick
-    low = min(open_p, close_p) - lower_wick
-
-    return {"name": "Hammer", "open": open_p, "close": close_p, "high": high, "low": low}
-
-
-def make_shooting_star():
-    body = random.uniform(0.2, 0.6)
-    upper_wick = body * random.uniform(2.2, 3.5)
-    lower_wick = body * random.uniform(0, 0.3)
-    bullish = random.choice([True, False])
-
-    if bullish:
-        close_p = 100
-        open_p = close_p - body
-    else:
-        open_p = 100
-        close_p = open_p - body
-
-    high = max(open_p, close_p) + upper_wick
-    low = min(open_p, close_p) - lower_wick
-
-    return {"name": "Shooting Star", "open": open_p, "close": close_p, "high": high, "low": low}
-
-
-def make_doji():
-    center = 100
-    open_p = center + random.uniform(-0.05, 0.05)
-    close_p = center + random.uniform(-0.05, 0.05)
-    upper_wick = random.uniform(0.3, 1.2)
-    lower_wick = random.uniform(0.3, 1.2)
-
-    return {
-        "name": "Doji",
-        "open": open_p,
-        "close": close_p,
-        "high": max(open_p, close_p) + upper_wick,
-        "low": min(open_p, close_p) - lower_wick
-    }
-
-
-def make_long_legged_doji():
-    center = 100
-    open_p = center + random.uniform(-0.05, 0.05)
-    close_p = center + random.uniform(-0.05, 0.05)
-    high = center + random.uniform(2.0, 3.5)
-    low = center - random.uniform(2.0, 3.5)
-
-    return {
-        "name": "Long-legged Doji",
-        "open": open_p,
-        "close": close_p,
-        "high": high,
-        "low": low
-    }
-
-
-def make_bullish_engulfing():
-    prev_open = 100
-    prev_close = prev_open - random.uniform(0.3, 1.2)
-    new_close = prev_open + random.uniform(0.5, 1.3)
-    new_open = prev_close - random.uniform(0.1, 0.3)
-    high = max(new_open, new_close) + random.uniform(0.2, 0.8)
-    low = min(new_open, new_close) - random.uniform(0.2, 0.8)
-
-    return {"name": "Bullish Engulfing", "open": new_open, "close": new_close, "high": high, "low": low}
-
-
-def make_bearish_engulfing():
-    prev_close = 100
-    prev_open = prev_close + random.uniform(0.3, 1.2)
-    new_close = prev_open - random.uniform(0.5, 1.3)
-    new_open = prev_close + random.uniform(0.1, 0.3)
-    high = max(new_open, new_close) + random.uniform(0.2, 0.8)
-    low = min(new_open, new_close) - random.uniform(0.2, 0.8)
-
-    return {"name": "Bearish Engulfing", "open": new_open, "close": new_close, "high": high, "low": low}
-
-
-# ================================================================
-#       PATTERN SET DEFINITIONS + HYBRID UNLOCK LOGIC
-# ================================================================
-PATTERNS_A = [
-    "Hammer", "Shooting Star", "Doji",
-    "Long-legged Doji", "Bullish Engulfing", "Bearish Engulfing"
-]
-
-PATTERNS_B = ["Morning Star", "Evening Star", "Inverted Hammer", "Gravestone Doji"]
-PATTERNS_C = ["Harami", "Dark Cloud Cover", "Piercing Line", "Three White Soldiers", "Three Black Crows"]
-
-
-def get_active_patterns():
-    if st.session_state.mode == "Set A":
-        return PATTERNS_A
-
-    if st.session_state.mode == "Set B":
-        if st.session_state.unlock_b or st.session_state.dev_override:
-            return PATTERNS_A + PATTERNS_B
-        st.warning("⚠️ Score 70% in Set A to unlock Set B.")
-        st.session_state.mode = "Set A"
-        return PATTERNS_A
-
-    if st.session_state.mode == "Set C":
-        if st.session_state.unlock_c or st.session_state.dev_override:
-            return PATTERNS_A + PATTERNS_B + PATTERNS_C
-        st.warning("⚠️ Score 70% in Set B to unlock Set C.")
-        st.session_state.mode = "Set B" if st.session_state.unlock_b else "Set A"
-        return PATTERNS_A
-
-
-def pick_pattern():
-    return random.choice(get_active_patterns())
-
-
-def generate_pattern_candle(name):
-    if name == "Hammer": return make_hammer()
-    if name == "Shooting Star": return make_shooting_star()
-    if name == "Doji": return make_doji()
-    if name == "Long-legged Doji": return make_long_legged_doji()
-    if name == "Bullish Engulfing": return make_bullish_engulfing()
-    if name == "Bearish Engulfing": return make_bearish_engulfing()
-    return make_doji()
-
-
-# ================================================================
-#                   MATPLOTLIB CHART RENDERING
-# ================================================================
-def draw_candle(ax, idx, candle):
-    o, c, h, l = candle["open"], candle["close"], candle["high"], candle["low"]
-    color = GREEN if c >= o else RED
-    ax.vlines(idx, l, h, color=color, linewidth=2)
-    body_bottom = min(o, c)
-    body_height = abs(c - o)
-    rect = patches.Rectangle((idx - 0.3, body_bottom), 0.6,
-                             body_height if body_height > 0 else 0.02,
-                             facecolor=color, edgecolor=color, linewidth=1.2)
-    ax.add_patch(rect)
-
-
-def render_chart_with_highlight(pattern_candle, pattern_index):
-    num = random.randint(10, 15)
-    prices = generate_background_prices(num)
-
-    candles = []
-    for i in range(num):
-        op = prices[i] + np.random.uniform(-1.2, 1.2)
-        cl = prices[i] + np.random.uniform(-1.2, 1.2)
-        hi = max(op, cl) + np.random.uniform(0.2, 1.3)
-        lo = min(op, cl) - np.random.uniform(0.2, 1.3)
-        candles.append({"open": op, "close": cl, "high": hi, "low": lo})
-
-    candles[pattern_index] = pattern_candle
-
-    fig, ax = plt.subplots(figsize=(10, 4))
-    fig.patch.set_facecolor(BG)
-    ax.set_facecolor(BG)
-
-    for i, cndl in enumerate(candles):
-        draw_candle(ax, i, cndl)
-
-    pc = candles[pattern_index]
-    highlight = patches.Rectangle(
-        (pattern_index - 0.6, pc["low"] - 0.5),
-        1.2,
-        (pc["high"] - pc["low"]) + 1.0,
-        linewidth=1.8,
-        edgecolor=HIGHLIGHT_COLOR,
-        facecolor="none"
-    )
-    ax.add_patch(highlight)
-
-    ax.set_xticks([])
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-    ax.tick_params(left=False, bottom=False)
-
-    plt.tight_layout()
-    return fig
-
-
 # ================================================================
 #                   SIDEBAR UI
 # ================================================================
@@ -282,10 +22,14 @@ chosen_mode = st.sidebar.radio(
 
 st.session_state.mode = chosen_mode
 
-if chosen_mode == "Set B" and not (st.session_state.unlock_b or st.session_state.dev_override):
+if chosen_mode == "Set B" and not (
+    st.session_state.unlock_b or st.session_state.dev_override
+):
     st.sidebar.warning("🔒 Locked — Score 70% in Set A")
 
-if chosen_mode == "Set C" and not (st.session_state.unlock_c or st.session_state.dev_override):
+if chosen_mode == "Set C" and not (
+    st.session_state.unlock_c or st.session_state.dev_override
+):
     st.sidebar.warning("🔒 Locked — Score 70% in Set B")
 
 
@@ -308,12 +52,21 @@ st.markdown(
 # ================================================================
 correct_pattern = pick_pattern()
 pattern_candle = generate_pattern_candle(correct_pattern)
-pattern_index = random.randint(2, 12)
+
+# FIXED RANGE + VALID INDEX
+num_candles = random.randint(10, 15)
+pattern_index = random.randint(1, num_candles - 2)
 
 st.markdown("## 📊 CHART ACTION – Identify the highlighted pattern candle")
-fig = render_chart_with_highlight(pattern_candle, pattern_index)
+
+# FIXED SIGNATURE
+fig = render_chart_with_highlight(pattern_candle, pattern_index, num_candles)
 st.pyplot(fig)
 
+
+# ================================================================
+#                    ANSWER BUTTONS
+# ================================================================
 st.markdown("## 🎯 IDENTIFY THE PATTERN CANDLE")
 
 active_patterns = get_active_patterns()
