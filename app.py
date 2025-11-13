@@ -1,29 +1,103 @@
 import streamlit as st
-import time
 import random
+import time
+import matplotlib.pyplot as plt
 
-# --- Import your helper functions ---
-from utils.patterns import pick_pattern, generate_pattern_candle, get_active_patterns
-from utils.charting import render_chart_with_highlight
-from utils.state import reset_game
 
-# --- Initialize session state ---
-if "dev_override" not in st.session_state:
-    st.session_state.dev_override = False
-if "unlock_b" not in st.session_state:
-    st.session_state.unlock_b = False
-if "unlock_c" not in st.session_state:
-    st.session_state.unlock_c = False
-if "mode" not in st.session_state:
-    st.session_state.mode = "Set A"
-if "start_time" not in st.session_state:
-    st.session_state.start_time = time.time()
-if "score" not in st.session_state:
-    st.session_state.score = 0
-if "streak" not in st.session_state:
-    st.session_state.streak = 0
-if "round" not in st.session_state:
-    st.session_state.round = 0
+# ================================================================
+#          SESSION STATE INITIALIZATION
+# ================================================================
+def init_state():
+    defaults = {
+        "dev_override": False,
+        "unlock_b": False,
+        "unlock_c": False,
+        "mode": "Set A",
+        "start_time": time.time(),
+        "score": 0,
+        "streak": 0,
+        "round": 0,
+        "show_examples": False
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+init_state()
+
+
+# ================================================================
+#          SIMPLE PATTERN PICKER
+# ================================================================
+SET_A = ["Hammer", "Shooting Star", "Doji",
+         "Long-legged Doji", "Bullish Engulfing", "Bearish Engulfing"]
+
+SET_B = ["Morning Star", "Evening Star", "Harami", "Marubozu"]
+
+SET_C = ["Three White Soldiers", "Three Black Crows", "Piercing Line"]
+
+
+def get_active_patterns():
+    if st.session_state.mode == "Set A":
+        return SET_A
+    if st.session_state.mode == "Set B":
+        return SET_B
+    return SET_C
+
+
+def pick_pattern():
+    return random.choice(get_active_patterns())
+
+
+# ================================================================
+#        SIMPLE RANDOM CANDLE GENERATOR (NO UTILS)
+# ================================================================
+def generate_pattern_candle(pattern):
+    """Return a synthetic candle structure for Matplotlib display."""
+    # For C mode you don't care — so we just return random candles
+    candles = []
+    for _ in range(20):
+        open_ = random.uniform(90, 110)
+        close = open_ + random.uniform(-5, 5)
+        high = max(open_, close) + random.uniform(0, 3)
+        low = min(open_, close) - random.uniform(0, 3)
+        candles.append((open_, high, low, close))
+    return candles
+
+
+# ================================================================
+#                BASIC MATPLOTLIB RENDERER
+# ================================================================
+def render_chart_with_highlight(candles, highlight_idx):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    for i, (open_, high, low, close) in enumerate(candles):
+
+        color = "green" if close >= open_ else "red"
+        linewidth = 2 if i == highlight_idx else 1.2
+        alpha = 1.0 if i == highlight_idx else 0.5
+
+        # Wick
+        ax.plot([i, i], [low, high], color=color, linewidth=linewidth, alpha=alpha)
+
+        # Body
+        ax.add_patch(plt.Rectangle(
+            (i - 0.3, min(open_, close)),
+            0.6,
+            abs(close - open_),
+            color=color,
+            alpha=alpha
+        ))
+
+    ax.set_xlim(-1, len(candles))
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title("Identify the Highlighted Candle", color="white")
+    fig.patch.set_facecolor("#111111")
+    ax.set_facecolor("#111111")
+    return fig
+
+
 # ================================================================
 #                   SIDEBAR UI
 # ================================================================
@@ -60,7 +134,7 @@ if chosen_mode == "Set C" and not (
 
 
 # ================================================================
-#                 TOP TIMER DISPLAY
+#               TOP TIMER DISPLAY
 # ================================================================
 elapsed = time.time() - st.session_state.start_time
 st.markdown(
@@ -74,24 +148,20 @@ st.markdown(
 
 
 # ================================================================
-#                 MAIN GAME DISPLAY
+#               MAIN GAME DISPLAY
 # ================================================================
 correct_pattern = pick_pattern()
-pattern_candle = generate_pattern_candle(correct_pattern)
-
-# FIXED RANGE + VALID INDEX
-num_candles = random.randint(10, 15)
-pattern_index = random.randint(1, num_candles - 2)
+candles = generate_pattern_candle(correct_pattern)
+pattern_index = random.randint(2, len(candles) - 3)
 
 st.markdown("## 📊 CHART ACTION – Identify the highlighted pattern candle")
 
-# FIXED SIGNATURE
-fig = render_chart_with_highlight(pattern_candle, pattern_index, num_candles)
+fig = render_chart_with_highlight(candles, pattern_index)
 st.pyplot(fig)
 
 
 # ================================================================
-#                    ANSWER BUTTONS
+#                 ANSWER BUTTONS
 # ================================================================
 st.markdown("## 🎯 IDENTIFY THE PATTERN CANDLE")
 
@@ -104,6 +174,7 @@ for i, pat in enumerate(active_patterns):
         clicked = pat
 
 if clicked:
+
     if clicked == correct_pattern:
         st.success(f"🎉 Correct! It was **{correct_pattern}**.")
         st.session_state.score += 1
@@ -160,7 +231,7 @@ st.sidebar.markdown("### 📷 Perfect Examples")
 if st.sidebar.button("CLICK FOR PERFECT EXAMPLES"):
     st.session_state.show_examples = True
 
-if st.session_state.get("show_examples", False):
+if st.session_state.show_examples:
     st.markdown("## 📚 Perfect Textbook Examples")
     st.info("Set A patterns shown below.")
 
@@ -184,5 +255,6 @@ if st.session_state.get("show_examples", False):
 # ================================================================
 st.markdown("### 🔁 Reset Game")
 if st.button("Start Over"):
-    reset_game()
+    for k in list(st.session_state.keys()):
+        del st.session_state[k]
     st.experimental_rerun()
