@@ -1,3 +1,29 @@
+import streamlit as st
+import time
+import random
+
+# --- Import your helper functions ---
+from utils.patterns import pick_pattern, generate_pattern_candle, get_active_patterns
+from utils.charting import render_chart_with_highlight
+from utils.state import reset_game
+
+# --- Initialize session state ---
+if "dev_override" not in st.session_state:
+    st.session_state.dev_override = False
+if "unlock_b" not in st.session_state:
+    st.session_state.unlock_b = False
+if "unlock_c" not in st.session_state:
+    st.session_state.unlock_c = False
+if "mode" not in st.session_state:
+    st.session_state.mode = "Set A"
+if "start_time" not in st.session_state:
+    st.session_state.start_time = time.time()
+if "score" not in st.session_state:
+    st.session_state.score = 0
+if "streak" not in st.session_state:
+    st.session_state.streak = 0
+if "round" not in st.session_state:
+    st.session_state.round = 0
 # ================================================================
 #                   SIDEBAR UI
 # ================================================================
