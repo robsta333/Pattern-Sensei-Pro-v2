@@ -76,38 +76,21 @@ for i, pat in enumerate(PATTERNS):
 # RESULT + NEW ROUND (Improved)
 # -----------------------------------------
 if clicked:
-
-    # BIG CLEAR ANSWER BOXES
+    # SHOW RESULT
     if clicked == st.session_state.correct_pattern:
-        st.markdown(
-            f"""
-            <div style="padding:18px; border-radius:12px; background-color:#003300;
-                        color:#66ff66; font-size:26px; text-align:center;">
-                🎉 Correct!<br/>It was <b>{st.session_state.correct_pattern}</b>.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        st.success(f"Correct! 🎉 It was {st.session_state.correct_pattern}.")
     else:
-        st.markdown(
-            f"""
-            <div style="padding:18px; border-radius:12px; background-color:#330000;
-                        color:#ff6666; font-size:26px; text-align:center;">
-                ❌ Incorrect<br/>It was <b>{st.session_state.correct_pattern}</b>.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        st.error(f"Incorrect ❌ — It was {st.session_state.correct_pattern}.")
 
-    st.write("")
     st.write("### Ready for the next one?")
 
-    # NEXT ROUND BUTTON
     if st.button("Next Round"):
-        # NEW PATTERN + NEW CANDLES
+        # Important: generate NEW data
         st.session_state.correct_pattern = random.choice(PATTERNS)
-        st.session_state.candles = generate_candles()
+        st.session_state.candles = generate_candles(n=20)
         st.session_state.highlight = random.randint(3, 16)
+
+        # force redraw with new candles
         st.rerun()
 
 
