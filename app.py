@@ -23,7 +23,7 @@ GREEN = "#26a69a"
 RED = "#ef5350"
 BG = "#0d1220"
 GRID = "#1a1f2e"
-HIGHLIGHT_COLOR = "#ffd84d"   # Softer gold highlight
+HIGHLIGHT_COLOR = "#ffd84d"   # soft gold
 
 
 # ================================================================
@@ -57,7 +57,7 @@ def reset_game():
 
 
 # ================================================================
-#          RANDOM WALK FOR BACKGROUND CANDLES
+#          BACKGROUND CANDLES (RANDOM WALK)
 # ================================================================
 def generate_background_prices(n=15):
     prices = [100]
@@ -67,7 +67,7 @@ def generate_background_prices(n=15):
 
 
 # ================================================================
-#          YOUR BASE CANDLE GENERATOR (PANDAS)
+#                 BASE CANDLE GENERATOR (PANDAS)
 # ================================================================
 def generate_base_candles(n=20):
     """Realistic volatility, trend drift, clean OHLC."""
@@ -96,88 +96,69 @@ def generate_base_candles(n=20):
 
 
 # ================================================================
-#     PERFECT MERGED PATTERN GENERATOR (SAFE + ACCURATE)
+#     PATTERN GENERATOR (SAFE, ACCURATE, NO ASSERTIONS)
 # ================================================================
 def generate_pattern_df(pattern_type):
-    """Creates realistic + accurate patterns using a DataFrame."""
     df = generate_base_candles(20)
-
-    idx = -2          # pattern candle index
+    idx = -2
     prev_idx = idx - 1
 
-    # Baseline body size and level
     body = random.uniform(0.35, 0.85)
     base = df.iloc[idx]["open"]
 
-    # ---------------------------------------------------------
-    # HELPER FUNCTIONS
-    # ---------------------------------------------------------
     def enforce_ohlc_safe(row):
-        """Ensure high >= open/close and low <= open/close."""
         row["high"] = max(row["open"], row["close"], row["high"])
         row["low"] = min(row["open"], row["close"], row["low"])
         return row
 
     def safe_adjust(condition, adjust_fn):
-        """If strict-rule check fails, adjust instead of asserting."""
         if not condition():
             adjust_fn()
 
-    # ---------------------------------------------------------
-    # PATTERN LOGIC
-    # ---------------------------------------------------------
-
-    # ────────────────────────────────
+    # ---------------------------
     # HAMMER
-    # ────────────────────────────────
+    # ---------------------------
     if pattern_type == "Hammer":
         open_p = base
         close_p = base + body
-        high_p = max(open_p, close_p) + body * 0.08       # <10% upper wick
-        low_p = min(open_p, close_p) - body * 3           # long lower wick
+        high_p = max(open_p, close_p) + body * 0.08
+        low_p = min(open_p, close_p) - body * 3
 
         df.at[df.index[idx], "open"] = open_p
         df.at[df.index[idx], "close"] = close_p
         df.at[df.index[idx], "high"] = high_p
         df.at[df.index[idx], "low"] = low_p
 
-        # SAFETY: ensure upper wick really is small
-        def hammer_condition():
-            return (high_p - close_p) < body * 0.1
+        safe_adjust(
+            lambda: (high_p - close_p) < body * 0.1,
+            lambda: df.at[df.index[idx], "high"] == close_p + body * 0.05
+        )
 
-        def hammer_adjust():
-            df.at[df.index[idx], "high"] = close_p + body * 0.05
-
-        safe_adjust(hammer_condition, hammer_adjust)
-
-    # ────────────────────────────────
+    # ---------------------------
     # SHOOTING STAR
-    # ────────────────────────────────
+    # ---------------------------
     elif pattern_type == "Shooting Star":
         open_p = base + body
         close_p = base
-        high_p = max(open_p, close_p) + body * 3          # long upper wick
-        low_p = min(open_p, close_p) - body * 0.08        # <10% lower wick
+        high_p = max(open_p, close_p) + body * 3
+        low_p = min(open_p, close_p) - body * 0.08
 
         df.at[df.index[idx], "open"] = open_p
         df.at[df.index[idx], "close"] = close_p
         df.at[df.index[idx], "high"] = high_p
         df.at[df.index[idx], "low"] = low_p
 
-        def ss_condition():
-            return (open_p - low_p) < body * 0.1
+        safe_adjust(
+            lambda: (open_p - low_p) < body * 0.1,
+            lambda: df.at[df.index[idx], "low"] == min(open_p, close_p) - body * 0.05
+        )
 
-        def ss_adjust():
-            df.at[df.index[idx], "low"] = min(open_p, close_p) - body * 0.05
-
-        safe_adjust(ss_condition, ss_adjust)
-
-    # ────────────────────────────────
+    # ---------------------------
     # LONG-LEGGED DOJI
-    # ────────────────────────────────
+    # ---------------------------
     elif pattern_type == "Long-legged Doji":
         open_p = base
-        close_p = base + random.uniform(-0.015, 0.015)     # near-equal
+        close_p = base + random.uniform(-0.015, 0.015)
         high_p = base + body * 2.5
         low_p = base - body * 2.5
 
@@ -188,21 +169,15 @@ def generate_pattern_df(pattern_type):
 
         rng = high_p - low_p
 
-        def doji_condition():
-            return abs(open_p - close_p) <= rng * 0.02
+        safe_adjust(
+            lambda: abs(open_p - close_p) <= rng * 0.02,
+            lambda: df.at[df.index[idx], "close"] == open_p + random.uniform(-rng * 0.015, rng * 0.015)
+        )
 
-        def doji_adjust():
-            df.at[df.index[idx], "close"] = open_p + random.uniform(
-                -rng * 0.015, rng * 0.015
-            )
-
-        safe_adjust(doji_condition, doji_adjust)
-
-    # ────────────────────────────────
+    # ---------------------------
     # BULLISH ENGULFING
-    # ────────────────────────────────
+    # ---------------------------
     elif pattern_type == "Bullish Engulfing":
-        # Previous red
         df.at[df.index[prev_idx], "open"] = base + body * 0.3
         df.at[df.index[prev_idx], "close"] = base - body * 0.3
         df.at[df.index[prev_idx], "high"] = max(
@@ -212,29 +187,25 @@ def generate_pattern_df(pattern_type):
             df.iloc[prev_idx]["open"], df.iloc[prev_idx]["close"]
         ) - body * 0.1
 
-        # Current BIG green
         df.at[df.index[idx], "open"] = base - body * 0.6
         df.at[df.index[idx], "close"] = base + body * 1.4
         df.at[df.index[idx], "high"] = base + body * 1.5
         df.at[df.index[idx], "low"] = base - body * 0.7
 
-    # ────────────────────────────────
+    # ---------------------------
     # BEARISH ENGULFING
-    # ────────────────────────────────
+    # ---------------------------
     elif pattern_type == "Bearish Engulfing":
-        # Previous green
         df.at[df.index[prev_idx], "open"] = base - body * 0.3
         df.at[df.index[prev_idx], "close"] = base + body * 0.3
         df.at[df.index[prev_idx], "high"] = base + body * 0.4
         df.at[df.index[prev_idx], "low"] = base - body * 0.4
 
-        # Current BIG red
         df.at[df.index[idx], "open"] = base + body * 0.6
         df.at[df.index[idx], "close"] = base - body * 1.4
         df.at[df.index[idx], "high"] = base + body * 0.7
         df.at[df.index[idx], "low"] = base - body * 1.5
 
-    # Final OHLC enforcement
     df.iloc[idx] = enforce_ohlc_safe(df.iloc[idx])
     df.iloc[prev_idx] = enforce_ohlc_safe(df.iloc[prev_idx])
 
@@ -242,10 +213,6 @@ def generate_pattern_df(pattern_type):
 
 
 def generate_pattern_candle(pattern_name: str):
-    """
-    Wrapper: uses your pandas-based generator and returns a simple dict
-    with open, close, high, low for the pattern candle.
-    """
     df, pattern_type, idx, prev_idx = generate_pattern_df(pattern_name)
     row = df.iloc[idx]
     return {
@@ -254,10 +221,8 @@ def generate_pattern_candle(pattern_name: str):
         "high": float(row["high"]),
         "low": float(row["low"])
     }
-
-
 # ================================================================
-#       PATTERN SET DEFINITIONS + HYBRID UNLOCK LOGIC
+#       PATTERN SETS + UNLOCK LOGIC
 # ================================================================
 PATTERNS_A = [
     "Hammer",
@@ -311,20 +276,19 @@ def pick_pattern():
 
 
 # ================================================================
-#                   MATPLOTLIB CHART RENDERING
+#                   MATPLOTLIB CANDLE DRAWING
 # ================================================================
 def draw_candle(ax, idx, candle):
-    """Draw a single TradingView-style candle."""
     o, c, h, l = candle["open"], candle["close"], candle["high"], candle["low"]
     color = GREEN if c >= o else RED
 
-    # Wick
     ax.vlines(idx, l, h, color=color, linewidth=2)
 
     # Body
     body_bottom = min(o, c)
     body_height = abs(c - o)
-    body_height = body_height if body_height > 0 else 0.02
+    if body_height == 0:
+        body_height = 0.02
 
     rect = patches.Rectangle(
         (idx - 0.3, body_bottom),
@@ -338,10 +302,6 @@ def draw_candle(ax, idx, candle):
 
 
 def render_chart_with_highlight(pattern_candle, pattern_index, num_candles):
-    """
-    Renders a mini-chart with the highlight box.
-    num_candles is passed in from outside (fixes IndexError).
-    """
     prices = generate_background_prices(num_candles)
     candles = []
 
@@ -350,19 +310,16 @@ def render_chart_with_highlight(pattern_candle, pattern_index, num_candles):
         cl = prices[i] + np.random.uniform(-1.2, 1.2)
         hi = max(op, cl) + np.random.uniform(0.2, 1.3)
         lo = min(op, cl) - np.random.uniform(0.2, 1.3)
-
         candles.append({"open": op, "close": cl, "high": hi, "low": lo})
 
-    # Insert the pattern candle at a safe index
     candles[pattern_index] = pattern_candle
 
     fig, ax = plt.subplots(figsize=(10, 4))
     fig.patch.set_facecolor(BG)
     ax.set_facecolor(BG)
 
-    # Draw all candles
-    for idx, cndl in enumerate(candles):
-        draw_candle(ax, idx, cndl)
+    for idx, candle in enumerate(candles):
+        draw_candle(ax, idx, candle)
 
     # Highlight box
     pc = candles[pattern_index]
@@ -382,6 +339,7 @@ def render_chart_with_highlight(pattern_candle, pattern_index, num_candles):
 
     ax.tick_params(left=False, bottom=False)
     plt.tight_layout()
+
     return fig
 
 
@@ -405,7 +363,6 @@ chosen_mode = st.sidebar.radio(
     ["Set A", "Set B", "Set C"],
     index=["Set A", "Set B", "Set C"].index(st.session_state.mode),
 )
-
 st.session_state.mode = chosen_mode
 
 if chosen_mode == "Set B" and not (
@@ -420,7 +377,7 @@ if chosen_mode == "Set C" and not (
 
 
 # ================================================================
-#                 TOP TIMER DISPLAY
+#                 TIMER DISPLAY
 # ================================================================
 elapsed = time.time() - st.session_state.start_time
 st.markdown(
@@ -431,15 +388,13 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-
 # ================================================================
 #                 MAIN GAME DISPLAY
 # ================================================================
 correct_pattern = pick_pattern()
 pattern_candle = generate_pattern_candle(correct_pattern)
 
-# SAFE number of candles and index
+# Always safe / always matches array size
 num_candles = random.randint(12, 16)
 pattern_index = random.randint(1, num_candles - 2)
 
@@ -486,7 +441,7 @@ if clicked:
             st.session_state.unlock_c = True
             st.sidebar.success("🔥 Set C unlocked!")
 
-    st.experimental_rerun()
+    st.rerun()     # UPDATED FOR 2025 STREAMLIT
 
 
 # ================================================================
@@ -495,11 +450,13 @@ if clicked:
 with st.expander("💡 Need a hint?"):
     st.markdown(
         """
-    **Hammer:** Tiny body up top, long lower wick.  
-    **Shooting Star:** Tiny body bottom, long upper wick.  
-    **Doji / Long-Legged Doji:** Open ≈ close, long wicks.  
-    **Bullish Engulfing:** Big green candle engulfs red.  
-    **Bearish Engulfing:** Big red candle engulfs green.  
+    ### Quick Pattern Reference  
+    **Hammer** — small body, long lower wick  
+    **Shooting Star** — small body, long upper wick  
+    **Doji** — open ≈ close  
+    **Long-Legged Doji** — open ≈ close, long wicks  
+    **Bullish Engulfing** — big green candle engulfs small red  
+    **Bearish Engulfing** — big red candle engulfs small green  
     """
     )
 
@@ -536,7 +493,7 @@ if st.session_state.show_examples:
 
     if st.button("Close Gallery"):
         st.session_state.show_examples = False
-        st.experimental_rerun()
+        st.rerun()     # UPDATED FOR 2025 STREAMLIT
 
 
 # ================================================================
@@ -545,4 +502,4 @@ if st.session_state.show_examples:
 st.markdown("### 🔁 Reset Game")
 if st.button("Start Over"):
     reset_game()
-    st.experimental_rerun()
+    st.rerun()     # UPDATED FOR 2025 STREAMLIT
