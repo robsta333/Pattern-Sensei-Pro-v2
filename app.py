@@ -220,7 +220,8 @@ if clicked:
             st.session_state.unlock_c = True
             st.sidebar.success("🔥 Set C unlocked!")
 
-    st.rerun(
+    st.rerun()
+
 
 
 # ================================================================
@@ -268,9 +269,9 @@ if st.session_state.show_examples:
     cols[1].markdown("### Bullish Engulfing")
     cols[2].markdown("### Bearish Engulfing")
 
-    if st.button("Close Gallery"):
-        st.session_state.show_examples = False
-        st.experimental_rerun()
+  if st.button("Close Gallery"):
+    st.session_state.show_examples = False
+    st.rerun()
 
 
 # ================================================================
@@ -280,4 +281,5 @@ st.markdown("### 🔁 Reset Game")
 if st.button("Start Over"):
     for k in list(st.session_state.keys()):
         del st.session_state[k]
-    st.experimental_rerun()
+    st.rerun()
+
