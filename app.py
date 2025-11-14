@@ -71,22 +71,43 @@ def generate_pattern_candle(pattern):
 # ================================================================
 def render_chart_with_highlight(candles, highlight_idx):
     fig, ax = plt.subplots(figsize=(8, 4))
-    for i, (open_, high, low, close) in enumerate(candles):
 
-        color = "green" if close >= open_ else "red"
-        linewidth = 2 if i == highlight_idx else 1.2
-        alpha = 1.0 if i == highlight_idx else 0.5
+    for i, (open_, high, low, close) in enumerate(candles):
+        is_highlight = (i == highlight_idx)
+
+        # Normal color for the candle body
+        base_color = "green" if close >= open_ else "red"
+
+        # Highlight styling
+        if is_highlight:
+            wick_color = "yellow"
+            body_edge = "yellow"
+            body_alpha = 0.9
+            line_width = 2.5
+
+            # Soft band behind the highlighted candle
+            ax.axvspan(i - 0.5, i + 0.5, color="yellow", alpha=0.12)
+        else:
+            wick_color = base_color
+            body_edge = base_color
+            body_alpha = 0.5
+            line_width = 1.2
 
         # Wick
-        ax.plot([i, i], [low, high], color=color, linewidth=linewidth, alpha=alpha)
+        ax.plot([i, i], [low, high],
+                color=wick_color,
+                linewidth=line_width,
+                alpha=body_alpha)
 
         # Body
         ax.add_patch(plt.Rectangle(
             (i - 0.3, min(open_, close)),
             0.6,
             abs(close - open_),
-            color=color,
-            alpha=alpha
+            facecolor=base_color,
+            edgecolor=body_edge,
+            linewidth=line_width,
+            alpha=body_alpha
         ))
 
     ax.set_xlim(-1, len(candles))
@@ -96,6 +117,7 @@ def render_chart_with_highlight(candles, highlight_idx):
     fig.patch.set_facecolor("#111111")
     ax.set_facecolor("#111111")
     return fig
+
 
 
 # ================================================================
