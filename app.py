@@ -115,9 +115,6 @@ def generate_pattern_df(pattern_type):
         if not condition():
             adjust_fn()
 
-    # ---------------------------
-    # HAMMER
-    # ---------------------------
     if pattern_type == "Hammer":
         open_p = base
         close_p = base + body
@@ -129,14 +126,6 @@ def generate_pattern_df(pattern_type):
         df.at[df.index[idx], "high"] = high_p
         df.at[df.index[idx], "low"] = low_p
 
-        safe_adjust(
-            lambda: (high_p - close_p) < body * 0.1,
-            lambda: df.at[df.index[idx], "high"] == close_p + body * 0.05
-        )
-
-    # ---------------------------
-    # SHOOTING STAR
-    # ---------------------------
     elif pattern_type == "Shooting Star":
         open_p = base + body
         close_p = base
@@ -148,14 +137,6 @@ def generate_pattern_df(pattern_type):
         df.at[df.index[idx], "high"] = high_p
         df.at[df.index[idx], "low"] = low_p
 
-        safe_adjust(
-            lambda: (open_p - low_p) < body * 0.1,
-            lambda: df.at[df.index[idx], "low"] == min(open_p, close_p) - body * 0.05
-        )
-
-    # ---------------------------
-    # LONG-LEGGED DOJI
-    # ---------------------------
     elif pattern_type == "Long-legged Doji":
         open_p = base
         close_p = base + random.uniform(-0.015, 0.015)
@@ -167,44 +148,19 @@ def generate_pattern_df(pattern_type):
         df.at[df.index[idx], "high"] = high_p
         df.at[df.index[idx], "low"] = low_p
 
-        rng = high_p - low_p
-
-        safe_adjust(
-            lambda: abs(open_p - close_p) <= rng * 0.02,
-            lambda: df.at[df.index[idx], "close"] == open_p + random.uniform(-rng * 0.015, rng * 0.015)
-        )
-
-    # ---------------------------
-    # BULLISH ENGULFING
-    # ---------------------------
     elif pattern_type == "Bullish Engulfing":
         df.at[df.index[prev_idx], "open"] = base + body * 0.3
         df.at[df.index[prev_idx], "close"] = base - body * 0.3
-        df.at[df.index[prev_idx], "high"] = max(
-            df.iloc[prev_idx]["open"], df.iloc[prev_idx]["close"]
-        ) + body * 0.1
-        df.at[df.index[prev_idx], "low"] = min(
-            df.iloc[prev_idx]["open"], df.iloc[prev_idx]["close"]
-        ) - body * 0.1
 
         df.at[df.index[idx], "open"] = base - body * 0.6
         df.at[df.index[idx], "close"] = base + body * 1.4
-        df.at[df.index[idx], "high"] = base + body * 1.5
-        df.at[df.index[idx], "low"] = base - body * 0.7
 
-    # ---------------------------
-    # BEARISH ENGULFING
-    # ---------------------------
     elif pattern_type == "Bearish Engulfing":
         df.at[df.index[prev_idx], "open"] = base - body * 0.3
         df.at[df.index[prev_idx], "close"] = base + body * 0.3
-        df.at[df.index[prev_idx], "high"] = base + body * 0.4
-        df.at[df.index[prev_idx], "low"] = base - body * 0.4
 
         df.at[df.index[idx], "open"] = base + body * 0.6
         df.at[df.index[idx], "close"] = base - body * 1.4
-        df.at[df.index[idx], "high"] = base + body * 0.7
-        df.at[df.index[idx], "low"] = base - body * 1.5
 
     df.iloc[idx] = enforce_ohlc_safe(df.iloc[idx])
     df.iloc[prev_idx] = enforce_ohlc_safe(df.iloc[prev_idx])
@@ -276,7 +232,7 @@ def pick_pattern():
 
 
 # ================================================================
-#                   MATPLOTLIB CANDLE DRAWING
+#                   MATPLOTLIB CANDLE RENDERING
 # ================================================================
 def draw_candle(ax, idx, candle):
     o, c, h, l = candle["open"], candle["close"], candle["high"], candle["low"]
@@ -365,16 +321,6 @@ chosen_mode = st.sidebar.radio(
 )
 st.session_state.mode = chosen_mode
 
-if chosen_mode == "Set B" and not (
-    st.session_state.unlock_b or st.session_state.dev_override
-):
-    st.sidebar.warning("🔒 Locked — Score 70% in Set A")
-
-if chosen_mode == "Set C" and not (
-    st.session_state.unlock_c or st.session_state.dev_override
-):
-    st.sidebar.warning("🔒 Locked — Score 70% in Set B")
-
 
 # ================================================================
 #                 TIMER DISPLAY
@@ -388,13 +334,14 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
 # ================================================================
 #                 MAIN GAME DISPLAY
 # ================================================================
 correct_pattern = pick_pattern()
 pattern_candle = generate_pattern_candle(correct_pattern)
 
-# Always safe / always matches array size
 num_candles = random.randint(12, 16)
 pattern_index = random.randint(1, num_candles - 2)
 
@@ -429,19 +376,20 @@ if clicked:
     st.session_state.round += 1
     st.session_state.start_time = time.time()
 
-    # Unlock Set B
+    # Unlocks
     if not st.session_state.unlock_b:
         if st.session_state.score >= max(5, int(st.session_state.round * 0.7)):
             st.session_state.unlock_b = True
             st.sidebar.success("🎉 Set B unlocked!")
 
-    # Unlock Set C
     if st.session_state.unlock_b and not st.session_state.unlock_c:
         if st.session_state.score >= max(10, int(st.session_state.round * 0.7)):
             st.session_state.unlock_c = True
             st.sidebar.success("🔥 Set C unlocked!")
 
-    st.rerun()     # UPDATED FOR 2025 STREAMLIT
+    # ⏳ FIX: Pause so you can read the answer
+    time.sleep(1.2)
+    st.rerun()
 
 
 # ================================================================
@@ -450,13 +398,13 @@ if clicked:
 with st.expander("💡 Need a hint?"):
     st.markdown(
         """
-    ### Quick Pattern Reference  
-    **Hammer** — small body, long lower wick  
-    **Shooting Star** — small body, long upper wick  
+    ### Quick Pattern Guide  
+    **Hammer** — small body + long lower wick  
+    **Shooting Star** — small body + long upper wick  
     **Doji** — open ≈ close  
     **Long-Legged Doji** — open ≈ close, long wicks  
-    **Bullish Engulfing** — big green candle engulfs small red  
-    **Bearish Engulfing** — big red candle engulfs small green  
+    **Bullish Engulfing** — big green candle eats red  
+    **Bearish Engulfing** — big red candle eats green  
     """
     )
 
@@ -493,7 +441,8 @@ if st.session_state.show_examples:
 
     if st.button("Close Gallery"):
         st.session_state.show_examples = False
-        st.rerun()     # UPDATED FOR 2025 STREAMLIT
+        time.sleep(1.2)   # visible close
+        st.rerun()
 
 
 # ================================================================
@@ -502,4 +451,5 @@ if st.session_state.show_examples:
 st.markdown("### 🔁 Reset Game")
 if st.button("Start Over"):
     reset_game()
-    st.rerun()     # UPDATED FOR 2025 STREAMLIT
+    time.sleep(1.2)   # visible reset
+    st.rerun()
