@@ -227,14 +227,15 @@ if clicked:
 #                       HINTS
 # ================================================================
 with st.expander("💡 Need a hint?"):
-    st.markdown"""
-    **Hammer:** Tiny body up top, long lower wick.  
-    **Shooting Star:** Tiny body bottom, long upper wick.  
-    **Doji:** Open ≈ close.  
-    **Long-legged Doji:** Very long wicks, tiny body.  
-    **Bullish Engulfing:** Big green candle engulfs red.  
-    **Bearish Engulfing:** Big red candle engulfs green.  
-    """)
+    st.markdown("""
+**Hammer:** Tiny body up top, long lower wick.  
+**Shooting Star:** Tiny body bottom, long upper wick.  
+**Doji:** Open ≈ close.  
+**Long-legged Doji:** Very long wicks, tiny body.  
+**Bullish Engulfing:** Big green candle engulfs red.  
+**Bearish Engulfing:** Big red candle engulfs green.
+""")
+
 
 
 # ================================================================
