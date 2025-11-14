@@ -227,7 +227,7 @@ if clicked:
 #                       HINTS
 # ================================================================
 with st.expander("💡 Need a hint?"):
-    st.markdown("""
+    st.markdown"""
     **Hammer:** Tiny body up top, long lower wick.  
     **Shooting Star:** Tiny body bottom, long upper wick.  
     **Doji:** Open ≈ close.  
