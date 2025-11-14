@@ -220,7 +220,7 @@ if clicked:
             st.session_state.unlock_c = True
             st.sidebar.success("🔥 Set C unlocked!")
 
-    st.experimental_rerun()
+    st.rerun(
 
 
 # ================================================================
